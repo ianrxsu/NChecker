@@ -6,6 +6,10 @@ function isInternal(pathname: string): boolean {
   return pathname.startsWith("/admin") || pathname.startsWith("/api/")
 }
 
+function isUnlockFlow(pathname: string): boolean {
+  return pathname === "/unlock" || pathname.startsWith("/unlock/") || pathname === "/reward-callback" || pathname.startsWith("/reward-callback/")
+}
+
 function isNetflix(pathname: string): boolean {
   return pathname === "/netflix" || pathname.startsWith("/netflix/")
 }
@@ -13,7 +17,7 @@ function isNetflix(pathname: string): boolean {
 export function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl
 
-  if (isInternal(pathname) || isNetflix(pathname)) {
+  if (isInternal(pathname) || isNetflix(pathname) || isUnlockFlow(pathname)) {
     return NextResponse.next()
   }
 
