@@ -12,10 +12,7 @@ const SERVICES = {
   prime: { home: "/prime", generator: "/prime/account-generator" },
   crunchyroll: { home: "/crunchyroll", generator: "/crunchyroll/account-generator" },
 }
-const NAV = [
-  { label: "Home", href: "/" },
-  { label: "Guides", href: "/docs" },
-]
+const NAV = [{ label: "Netflix checker", href: "/netflix" }]
 
 export function SiteHeader({ width = "max-w-6xl", cta = "free-account", service = "netflix" }: {
   width?: string
