@@ -58,8 +58,8 @@ export async function POST(req: NextRequest) {
   }
 
   const next = body.provider
-  if (!isGatewayProvider(next)) {
-    return NextResponse.json({ error: "Unknown provider" }, { status: 400 })
+  if (next !== "shortxlinks") {
+    return NextResponse.json({ error: "Only ShortXLinks is supported." }, { status: 400 })
   }
 
   try {

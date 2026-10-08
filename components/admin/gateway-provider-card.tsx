@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { toast } from "sonner"
-import { Link2, Scissors, Loader2, ShieldCheck, TriangleAlert, GitMerge } from "lucide-react"
+import { Scissors, Loader2, ShieldCheck, TriangleAlert } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { DEFAULT_GATEWAY_PROVIDER, isGatewayProvider, type GatewayProvider } from "@/lib/gateway-provider"
 import { StatusDot } from "./shared"
@@ -19,63 +19,14 @@ const OPTIONS: {
   label: string
   icon: React.ElementType
   blurb: string
-  strength: "strong" | "medium" | "chain"
+  strength: "medium"
 }[] = [
-  {
-    value: "lootlabs",
-    label: "LootLabs only",
-    icon: ShieldCheck,
-    strength: "strong",
-    blurb:
-      "Server-to-server postback. A reward only unlocks when LootLabs confirms genuine task completion — truly unbypassable. Recommended default.",
-  },
-  {
-    value: "oii",
-    label: "oii.io only",
-    icon: Scissors,
-    strength: "medium",
-    blurb:
-      "Link shortener (like ShrinkEarn) but with NO 24h per-IP limit, so it behaves like LootLabs — the same visitor can pass repeatedly. Uses a signed return URL so users can't skip straight to the reward. Requires the OII_API_TOKEN env var.",
-  },
-  {
-    value: "shrinkearn_then_oii",
-    label: "ShrinkEarn → oii.io",
-    icon: GitMerge,
-    strength: "chain",
-    blurb:
-      "ShrinkEarn on fresh IPs (pays per view). When that IP hits its 24h cap, automatically falls back to oii.io (a shortener with no cooldown, so repeat visitors still hit a paying gate). Best monetization combo.",
-  },
-  {
-    value: "shrinkearn_then_lootlabs",
-    label: "ShrinkEarn → LootLabs",
-    icon: GitMerge,
-    strength: "chain",
-    blurb:
-      "ShrinkEarn on fresh IPs. Falls back to LootLabs when that IP is on its 24h ShrinkEarn cooldown or shortening fails. Original chain mode.",
-  },
-  {
-    value: "shrinkearn",
-    label: "ShrinkEarn (LL fallback)",
-    icon: Scissors,
-    strength: "medium",
-    blurb:
-      "URL shortener with HMAC-signed return + dwell-time check. Falls back to LootLabs on cooldown or API failure. Alias for ShrinkEarn → LootLabs.",
-  },
-  {
-    value: "shrinkearn_only",
-    label: "ShrinkEarn only",
-    icon: Scissors,
-    strength: "medium",
-    blurb:
-      "Always ShrinkEarn, no fallback. IPs past the 24h pay cap still pass through ShrinkEarn (as an unpaid view) — never diverted to another gateway. For max revenue prefer a chain mode.",
-  },
   {
     value: "shortxlinks",
     label: "ShortXLinks only",
     icon: Scissors,
     strength: "medium",
-    blurb:
-      "ShortXLinks URL shortener with a signed return URL and minimum dwell-time check. Falls back to LootLabs if the API is unavailable. Requires SHORTXLINKS_API_TOKEN.",
+    blurb: "All unlocks use ShortXLinks and return to kasumichecker.vercel.app. No other gateway is available.",
   },
 ]
 
