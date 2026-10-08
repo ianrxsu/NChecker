@@ -223,21 +223,20 @@ export async function POST(req: NextRequest) {
     let currentProxies = activeProxies
     let checkViaProxy = createProxyPoolChecker(currentProxies, { includeLinks, service })
     let refreshPromise: Promise<void> | null = null
-    let proxyRefreshUsed = false
 
-    // A proxy can die after the client's reachability probe. Refresh once per batch
-    // and requeue every cookie that was affected by the failed/slow proxy pool.
-    // The shared promise prevents concurrent workers from starting duplicate scrapes.
+    // Keep replacing the pool for the entire batch. A single shared promise
+    // coalesces simultaneous failures, while clearing it after each scrape lets
+    // later failures start the next replacement cycle before the batch deadline.
     const refreshProxyPool = async (): Promise<boolean> => {
-      if (proxyRefreshUsed) return false
-      proxyRefreshUsed = true
       if (!refreshPromise) {
         refreshPromise = getServerLiveProxies({ limit: 300 }).then((fresh) => {
           if (fresh.length === 0) return
           currentProxies = fresh
           checkViaProxy = createProxyPoolChecker(currentProxies, { includeLinks, service })
           pruneDispatchers(new Set(currentProxies.map((p) => p.id)))
-        }).catch(() => undefined)
+        }).catch(() => undefined).finally(() => {
+          refreshPromise = null
+        })
       }
       await refreshPromise
       return currentProxies.length > 0
