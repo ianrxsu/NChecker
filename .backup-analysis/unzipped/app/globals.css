@@ -1,0 +1,468 @@
+@import 'tailwindcss';
+@import 'tw-animate-css';
+@import 'shadcn/tailwind.css';
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  /* One monospace family everywhere — headings, body, UI, and code all share it. */
+  --font-heading: var(--font-geist-mono), 'Geist Mono Fallback', ui-monospace, monospace;
+  --font-sans: var(--font-geist-mono), 'Geist Mono Fallback', ui-monospace, monospace;
+  --font-mono: var(--font-geist-mono), 'Geist Mono Fallback', ui-monospace, monospace;
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-chart-5: var(--chart-5);
+  --color-chart-4: var(--chart-4);
+  --color-chart-3: var(--chart-3);
+  --color-chart-2: var(--chart-2);
+  --color-chart-1: var(--chart-1);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-success: var(--success);
+  --color-success-foreground: var(--success-foreground);
+  --color-warning: var(--warning);
+  --color-info: var(--info);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --color-foreground: var(--foreground);
+  --color-background: var(--background);
+  /* TERMINAL NOIR — rounded, not sharp. Soft radius scale. */
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --radius-2xl: calc(var(--radius) + 8px);
+  --radius-3xl: calc(var(--radius) + 16px);
+  --radius-4xl: calc(var(--radius) + 24px);
+}
+
+/* ---------------------------------------------------------------------------
+   TERMINAL NOIR — pure-black canvas, a single teal accent, all-monospace type,
+   premium glassmorphism. Developer-grade "hacker noir": precise, calm, confident.
+   Dark is the default & primary experience; light is a clean near-white inversion.
+--------------------------------------------------------------------------- */
+/* Light mode — the DEFAULT experience. Clean near-white canvas; teal darkens
+   for AA contrast on light surfaces. */
+:root {
+  color-scheme: light;
+  --background: oklch(0.965 0 0); /* soft gray so white cards separate clearly */
+  --foreground: oklch(0.18 0 0);
+  --card: oklch(1 0 0); /* pure white — now pops off the gray canvas */
+  --card-foreground: oklch(0.18 0 0);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.18 0 0);
+  --primary: oklch(0.58 0.12 183); /* teal — the ONLY hue */
+  --primary-foreground: oklch(0.99 0 0);
+  --secondary: oklch(0 0 0 / 0.05);
+  --secondary-foreground: oklch(0.22 0 0);
+  --muted: oklch(0 0 0 / 0.05);
+  --muted-foreground: oklch(0.42 0 0);
+  --accent: oklch(0.58 0.12 183);
+  --accent-foreground: oklch(0.99 0 0);
+  --destructive: oklch(0.58 0.245 27.3);
+  --success: oklch(0.58 0.12 183);
+  --success-foreground: oklch(0.99 0 0);
+  --warning: oklch(0.58 0.12 183);
+  --info: oklch(0.58 0.12 183);
+  --border: oklch(0 0 0 / 0.16); /* clearly visible hairline */
+  --input: oklch(0 0 0 / 0.2);
+  --ring: oklch(0.58 0.12 183);
+  --chart-1: oklch(0.62 0.12 183);
+  --chart-2: oklch(0.55 0.1 183);
+  --chart-3: oklch(0.48 0.08 183);
+  --chart-4: oklch(0.7 0.11 183);
+  --chart-5: oklch(0.5 0 0);
+  --radius: 0.625rem;
+  --sidebar: oklch(1 0 0);
+  --sidebar-foreground: oklch(0.2 0 0);
+  --sidebar-primary: oklch(0.62 0.12 183);
+  --sidebar-primary-foreground: oklch(0.99 0 0);
+  --sidebar-accent: oklch(0 0 0 / 0.05);
+  --sidebar-accent-foreground: oklch(0.2 0 0);
+  --sidebar-border: oklch(0 0 0 / 0.16);
+  --sidebar-ring: oklch(0.58 0.12 183);
+  /* Teal accent color (raw, for glows / effects). */
+  --tc-accent: oklch(0.58 0.12 183);
+  --tc-glow: oklch(0.58 0.12 183 / 0.22);
+  --tc-surface: oklch(0 0 0 / 0.05);
+  --tc-elevated: oklch(0 0 0 / 0.08);
+  /* Elevation shadows — soft, neutral. Give overlays real depth separation. */
+  --tc-shadow: 0 10px 30px -12px oklch(0 0 0 / 0.25), 0 2px 8px -4px oklch(0 0 0 / 0.12);
+  --tc-shadow-sm: 0 1px 2px oklch(0 0 0 / 0.06), 0 2px 6px -2px oklch(0 0 0 / 0.08);
+}
+
+/* Dark mode — Terminal Noir: pure-black canvas, brighter teal, hairline
+   white borders, premium glassmorphism. Opt-in via the mode switcher. */
+.dark {
+  color-scheme: dark;
+  --background: oklch(0.03 0 0); /* near-black canvas (not pure, so cards lift) */
+  --foreground: oklch(0.98 0 0); /* white */
+  --card: oklch(0.13 0 0); /* clearly elevated dark surface */
+  --card-foreground: oklch(0.98 0 0);
+  --popover: oklch(0.16 0 0); /* overlays sit above cards */
+  --popover-foreground: oklch(0.98 0 0);
+  --primary: oklch(0.72 0.13 183); /* teal #14b8a6 */
+  --primary-foreground: oklch(0.12 0 0); /* dark ink on teal */
+  --secondary: oklch(1 0 0 / 0.08); /* surface white/8 */
+  --secondary-foreground: oklch(0.98 0 0);
+  --muted: oklch(1 0 0 / 0.08);
+  --muted-foreground: oklch(0.75 0 0); /* brighter cool gray */
+  --accent: oklch(0.72 0.13 183);
+  --accent-foreground: oklch(0.12 0 0);
+  --destructive: oklch(0.65 0.22 25.3); /* red */
+  --success: oklch(0.72 0.13 183);
+  --success-foreground: oklch(0.12 0 0);
+  --warning: oklch(0.72 0.13 183);
+  --info: oklch(0.72 0.13 183);
+  --border: oklch(1 0 0 / 0.16); /* visible hairline white/16 */
+  --input: oklch(1 0 0 / 0.2);
+  --ring: oklch(0.72 0.13 183);
+  --chart-1: oklch(0.7 0.13 183);
+  --chart-2: oklch(0.62 0.11 183);
+  --chart-3: oklch(0.55 0.09 183);
+  --chart-4: oklch(0.8 0.1 183);
+  --chart-5: oklch(0.7 0 0);
+  --sidebar: oklch(0.11 0 0);
+  --sidebar-foreground: oklch(0.98 0 0);
+  --sidebar-primary: oklch(0.72 0.13 183);
+  --sidebar-primary-foreground: oklch(0.12 0 0);
+  --sidebar-accent: oklch(1 0 0 / 0.1);
+  --sidebar-accent-foreground: oklch(0.98 0 0);
+  --sidebar-border: oklch(1 0 0 / 0.16);
+  --sidebar-ring: oklch(0.72 0.13 183);
+  --tc-accent: oklch(0.72 0.13 183);
+  --tc-glow: oklch(0.72 0.13 183 / 0.35);
+  --tc-surface: oklch(1 0 0 / 0.06);
+  --tc-elevated: oklch(1 0 0 / 0.1);
+  /* Elevation shadows — deeper on dark for real overlay separation. */
+  --tc-shadow: 0 12px 40px -12px oklch(0 0 0 / 0.7), 0 2px 10px -4px oklch(0 0 0 / 0.5);
+  --tc-shadow-sm: 0 1px 2px oklch(0 0 0 / 0.4), 0 2px 8px -3px oklch(0 0 0 / 0.5);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+    position: relative;
+  }
+  html {
+    @apply font-mono;
+  }
+
+  a,
+  button,
+  input,
+  textarea,
+  label,
+  summary,
+  [role="tab"],
+  [role="button"],
+  [data-slot="dropdown-menu-trigger"] {
+    transition-timing-function: cubic-bezier(0.2, 0, 0, 1);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+}
+
+@layer base {
+  ::selection {
+    background: color-mix(in oklch, var(--primary) 30%, transparent);
+    color: var(--foreground);
+  }
+}
+
+/* ---------------------------------------------------------------------------
+   Ambient background — fixed fine dot-matrix grid on black, radially masked to
+   fade at the edges, with ONE restrained teal radial glow at the top.
+   Honors prefers-reduced-motion (it's static anyway).
+--------------------------------------------------------------------------- */
+.tc-ambient {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background-color: var(--background);
+  background-image:
+    radial-gradient(circle at 50% -10%, var(--tc-glow), transparent 55%),
+    radial-gradient(color-mix(in oklch, var(--foreground) 14%, transparent) 1px, transparent 1px);
+  background-size: 100% 100%, 24px 24px;
+  background-position: 0 0, 0 0;
+  -webkit-mask-image: radial-gradient(ellipse 120% 90% at 50% 0%, black 40%, transparent 100%);
+  mask-image: radial-gradient(ellipse 120% 90% at 50% 0%, black 40%, transparent 100%);
+}
+
+/* Slim themed scrollbars — thumb is tinted with the DYNAMIC brand color
+   (--primary), so it automatically tracks whatever theme color the admin sets.
+   A subtle track tint gives the bar a defined channel in both light & dark. */
+@layer utilities {
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: color-mix(in oklch, var(--primary) 55%, transparent) transparent;
+  }
+  *::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  *::-webkit-scrollbar-track {
+    background: color-mix(in oklch, var(--foreground) 6%, transparent);
+    border-radius: 9999px;
+  }
+  *::-webkit-scrollbar-thumb {
+    background: color-mix(in oklch, var(--primary) 55%, transparent);
+    border-radius: 9999px;
+    /* Inset border creates padding around the thumb so it reads as a slim pill. */
+    border: 2px solid transparent;
+    background-clip: padding-box;
+    transition: background-color 0.15s ease;
+  }
+  *::-webkit-scrollbar-thumb:hover {
+    background: var(--primary);
+    background-clip: padding-box;
+  }
+  *::-webkit-scrollbar-thumb:active {
+    background: var(--primary);
+    background-clip: padding-box;
+  }
+  *::-webkit-scrollbar-corner {
+    background: transparent;
+  }
+
+  .no-scrollbar {
+    scrollbar-width: none;
+  }
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+/* ---------------------------------------------------------------------------
+   GLASSMORPHISM utility system. The legacy glass/glow class NAMES are preserved
+   and repurposed so existing markup becomes Terminal Noir automatically: frosted
+   near-black surfaces, hairline borders, backdrop blur, teal glows.
+--------------------------------------------------------------------------- */
+@layer utilities {
+  /* Primary frosted container — near-opaque glass so text stays legible over the
+     ambient dot-grid, hairline border, blur, and a soft elevation shadow. */
+  .glass,
+  .tc-glass {
+    background-color: color-mix(in oklch, var(--card) 94%, transparent);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: var(--tc-shadow-sm);
+    backdrop-filter: blur(12px) saturate(140%);
+    -webkit-backdrop-filter: blur(12px) saturate(140%);
+  }
+  /* Floating overlays (dropdowns, popovers, selects, menus) — nearly solid +
+     stronger elevation shadow so they read clearly above page content. */
+  [data-slot="dropdown-menu-content"].glass,
+  [data-slot="dropdown-menu-sub-content"].glass,
+  [data-slot="popover-content"].glass,
+  [data-slot="select-content"].glass,
+  [data-slot="context-menu-content"].glass,
+  [data-slot="menubar-content"].glass,
+  [data-slot="command"].glass,
+  [data-slot="tooltip-content"].glass,
+  .glass-overlay {
+    background-color: color-mix(in oklch, var(--popover) 98%, transparent);
+    box-shadow: var(--tc-shadow);
+  }
+  /* Sticky bars / heavier surfaces — near-solid + stronger blur. */
+  .glass-strong {
+    background-color: color-mix(in oklch, var(--card) 92%, transparent);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: var(--tc-shadow-sm);
+    backdrop-filter: blur(16px) saturate(150%);
+    -webkit-backdrop-filter: blur(16px) saturate(150%);
+  }
+  /* Nested panels / inputs — subtle surface, hairline border. */
+  .glass-subtle {
+    background-color: var(--tc-surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+  }
+  /* Elevated translucent surface token helpers. */
+  .tc-surface {
+    background-color: var(--tc-surface);
+  }
+  .tc-elevated {
+    background-color: var(--tc-elevated);
+  }
+  /* Teal radial action glow behind a focal element. */
+  .glow-cyan,
+  .glow-violet,
+  .tc-glow-ring {
+    box-shadow: 0 0 0 1px var(--border), 0 0 40px -8px var(--tc-glow);
+  }
+
+  .animate-spin {
+    will-change: transform;
+  }
+
+  /* Pure-CSS row spinner (compositor-only, no React cost). */
+  @keyframes row-spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+  }
+  .row-spinner {
+    display: inline-block;
+    flex: none;
+    box-sizing: border-box;
+    width: 0.875rem;
+    height: 0.875rem;
+    aspect-ratio: 1 / 1;
+    border-radius: 50%;
+    border: 2px solid transparent;
+    border-top-color: currentColor;
+    border-right-color: currentColor;
+    will-change: transform;
+    animation: row-spin 0.75s linear infinite;
+  }
+
+  /* Sliding sheen for processing/loading bars. */
+  @keyframes shimmer {
+    0% { transform: translateX(-100%); }
+    100% { transform: translateX(100%); }
+  }
+  .anim-shimmer {
+    position: relative;
+    overflow: hidden;
+  }
+  .anim-shimmer::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background-image: linear-gradient(90deg, transparent, color-mix(in oklch, var(--primary), transparent 60%), transparent);
+    will-change: transform;
+    animation: shimmer 1.6s linear infinite;
+    pointer-events: none;
+  }
+
+  /* Blinking terminal cursor. */
+  @keyframes tc-blink {
+    0%, 49% { opacity: 1; }
+    50%, 100% { opacity: 0; }
+  }
+  .tc-blink {
+    display: inline-block;
+    animation: tc-blink 1.1s steps(1) infinite;
+  }
+
+  /* Component entry — smooth rise + fade. */
+  @keyframes condense-in {
+    0% { opacity: 0; transform: translateY(8px); }
+    100% { opacity: 1; transform: translateY(0); }
+  }
+  .anim-condense { animation: condense-in 0.3s cubic-bezier(0.2, 0, 0, 1) both; }
+  .anim-rise { animation: condense-in 0.3s cubic-bezier(0.2, 0, 0, 1) both; }
+
+  /* Error shake. */
+  @keyframes tc-shake {
+    0%, 100% { transform: translateX(0); }
+    20% { transform: translateX(-5px); }
+    40% { transform: translateX(5px); }
+    60% { transform: translateX(-3px); }
+    80% { transform: translateX(3px); }
+  }
+  .tc-shake { animation: tc-shake 0.4s cubic-bezier(0.36, 0.07, 0.19, 0.97) both; }
+
+  /* Hover — subtle lift + teal bloom on primary CTAs. */
+  .hover-lift {
+    transition: transform 0.18s cubic-bezier(0.2, 0, 0, 1), box-shadow 0.18s cubic-bezier(0.2, 0, 0, 1);
+  }
+  .hover-lift:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 30px -10px var(--tc-glow);
+  }
+
+  /* Tactile press. */
+  .press {
+    transition: transform 0.12s cubic-bezier(0.2, 0, 0, 1);
+  }
+  .press:active {
+    transform: scale(0.98);
+  }
+
+  /* Loading spinner ring. */
+  .cn-spinner {
+    display: inline-block;
+    aspect-ratio: 1;
+    border-radius: 9999px;
+    border: var(--cn-spinner-thickness, 2.5px) solid color-mix(in srgb, currentColor 25%, transparent);
+    border-top-color: currentColor;
+    will-change: transform;
+    animation: cn-spin 0.7s linear infinite;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .cn-spinner {
+      animation-duration: 1.6s;
+    }
+  }
+}
+
+@keyframes cn-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Glass toast — frosted near-black, hairline border, teal-tinted icons. */
+@layer components {
+  .cn-toast {
+    border-radius: var(--radius);
+    border: 1px solid var(--border);
+    background: color-mix(in oklch, var(--popover) 82%, transparent);
+    color: var(--popover-foreground);
+    backdrop-filter: blur(16px) saturate(150%);
+    -webkit-backdrop-filter: blur(16px) saturate(150%);
+    box-shadow: 0 8px 40px -12px var(--tc-glow);
+    font-family: var(--font-mono);
+    font-weight: 500;
+  }
+  .cn-toast [data-icon] {
+    align-self: flex-start;
+    margin-top: 1px;
+  }
+  .cn-toast[data-type="success"] [data-icon] {
+    color: var(--success);
+  }
+  .cn-toast[data-type="error"] [data-icon] {
+    color: var(--destructive);
+  }
+  .cn-toast[data-type="warning"] [data-icon] {
+    color: var(--warning);
+  }
+  .cn-toast[data-type="info"] [data-icon],
+  .cn-toast[data-type="loading"] [data-icon] {
+    color: var(--info);
+  }
+}
