@@ -1,5 +1,6 @@
 import type { Metadata } from "next"
 import { redirect } from "next/navigation"
+import { unstable_noStore as noStore } from "next/cache"
 import { readDeviceId } from "@/lib/device-id"
 import { getPass } from "@/lib/access-pass"
 import { PublicPageIntro } from "@/components/public-page-intro"
@@ -23,6 +24,7 @@ export const dynamic = "force-dynamic"
 // the URL segment on the SERVER so the correct checker is server-rendered on first
 // paint (no client-side flash/snap). Next 16 hands params in as a Promise.
 export default async function NetflixPage({ params }: { params: Promise<{ mode?: string[] }> }) {
+  noStore()
   // Require a valid server-side, device-bound 24-hour pass before rendering any
   // checker UI. This runs on every request, so expiry immediately locks access.
   const pass = await getPass(await readDeviceId())
