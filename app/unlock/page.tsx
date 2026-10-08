@@ -45,9 +45,9 @@ export default async function UnlockPage({ searchParams }: { searchParams: Promi
   const { service: serviceParam, error } = await searchParams
   const service = asService(serviceParam)
 
-  // Feature OFF → there's no pass concept; the generator runs its normal per-account
-  // gateway, so send the user straight there.
-  if (!(await isAccessPassMode())) redirect(generatorHref(service))
+  // Netflix is always protected by the 24-hour pass. Other services retain the
+  // admin-controlled toggle used by their existing generator flows.
+  if (service !== "netflix" && !(await isAccessPassMode())) redirect(generatorHref(service))
 
   const [ip, deviceId] = await Promise.all([requestIp(), readDeviceId()])
   const pass = await getPass(deviceId)

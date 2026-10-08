@@ -24,7 +24,7 @@ function generatorHref(service: Service): string {
     ? "/prime/account-generator"
     : service === "crunchyroll"
       ? "/crunchyroll/account-generator"
-      : "/account-generator"
+      : "/netflix"
 }
 
 function asService(value: unknown): Service {
@@ -63,8 +63,9 @@ export async function redeemUnlockCode(formData: FormData): Promise<void> {
 export async function startUnlock(formData: FormData): Promise<void> {
   const service = asService(formData.get("service"))
 
-  // Feature off → the unlock page is meaningless; send them to the generator.
-  if (!(await isAccessPassMode())) redirect(generatorHref(service))
+  // Netflix is always protected by the 24-hour pass. Other services retain the
+  // admin-controlled feature toggle used by their existing generator flows.
+  if (service !== "netflix" && !(await isAccessPassMode())) redirect(generatorHref(service))
 
   const ip = await requestIp()
   const deviceId = await getOrCreateDeviceId()
