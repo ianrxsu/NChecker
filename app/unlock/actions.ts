@@ -111,7 +111,8 @@ export async function startUnlock(formData: FormData): Promise<void> {
     await startUnlockInternal(formData)
   } catch (error) {
     console.error("[v0] NF unlock action failed", error)
-    redirect(`/unlock?service=netflix&error=${encodeURIComponent("Unlock is temporarily unavailable. Please try again.")}`)
+    const detail = error instanceof Error ? error.message : String(error)
+    redirect(`/unlock?service=netflix&error=${encodeURIComponent(`Unlock failed: ${detail.slice(0, 180)}`)}`)
   }
 }
 
