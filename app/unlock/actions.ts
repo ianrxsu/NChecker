@@ -96,6 +96,12 @@ export async function startUnlock(formData: FormData): Promise<void> {
   // The NF checker always uses the configured ShortXLinks API on unlock.
   // This bypasses the admin provider chain so the 24-hour pass starts through
   // SHORTXLINKS_NF_API every time the user clicks the unlock button.
-  const gatewayUrl = await buildGatewayUrl(token, ip, process.env.SHORTXLINKS_NF_API, true)
+  let gatewayUrl: string
+  try {
+    gatewayUrl = await buildGatewayUrl(token, ip, process.env.SHORTXLINKS_NF_API, true)
+  } catch (error) {
+    console.error("[v0] NF ShortXLinks unlock failed", error)
+    redirect(`/unlock?service=netflix&error=${encodeURIComponent("The NF unlock gateway is temporarily unavailable. Please try again.")}`)
+  }
   redirect(gatewayUrl)
 }
