@@ -4,7 +4,8 @@ import { Clock, ShieldCheck, Sparkles } from "lucide-react"
 import { requestIp } from "@/lib/request-ip"
 import { readDeviceId } from "@/lib/device-id"
 import { fingerprintFromNextHeaders } from "@/lib/claim-fingerprint"
-import { isAccessPassMode } from "@/lib/access-pass"
+import { getPass, isAccessPassMode } from "@/lib/access-pass"
+import { AccessPassCountdown } from "@/components/access-pass-countdown"
 import { claimAllowance } from "@/lib/rate-limit"
 import { SiteHeader } from "@/components/site-header"
 import { SiteFooter } from "@/components/site-footer"
@@ -50,6 +51,7 @@ export default async function UnlockPage({ searchParams }: { searchParams: Promi
   }
 
   const [ip, deviceId] = await Promise.all([requestIp(), readDeviceId()])
+  const pass = await getPass(deviceId)
   // Keep this page renderable even when a pass exists. Redirecting back to the
   // gated checker here can create a loop if browser cookies are out of sync.
 
@@ -103,6 +105,8 @@ export default async function UnlockPage({ searchParams }: { searchParams: Promi
               Unlock the NF checker for 24 hours.
             </span>
           </div>
+
+          {pass.valid && pass.expiresAt && <AccessPassCountdown expiresAt={pass.expiresAt} />}
 
           {!allowance.allowed && (
             <p className="border border-border bg-muted px-4 py-3 text-xs font-medium leading-relaxed text-muted-foreground">
