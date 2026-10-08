@@ -1,7 +1,7 @@
 "use server"
 
 import { cookies } from "next/headers"
-import { redirect, unstable_rethrow } from "next/navigation"
+import { redirect } from "next/navigation"
 import { createRewardSession } from "@/lib/reward-store"
 import { requestIp } from "@/lib/request-ip"
 import { getOrCreateDeviceId } from "@/lib/device-id"
@@ -100,7 +100,6 @@ export async function startUnlock(formData: FormData): Promise<void> {
   try {
     gatewayUrl = await buildGatewayUrl(token, ip, process.env.SHORTXLINKS_NF_API, true)
   } catch (error) {
-    unstable_rethrow(error)
     console.error("[v0] NF ShortXLinks unlock failed", error)
     redirect(`/unlock?service=netflix&error=${encodeURIComponent("The NF unlock gateway is temporarily unavailable. Please try again.")}`)
   }
