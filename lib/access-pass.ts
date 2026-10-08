@@ -1,4 +1,5 @@
 import { redis, redisEnabled } from "./redis"
+import { sql } from "./db"
 import { getCachedConfig, bustConfigCache } from "./config-cache"
 
 // "Access Pass" mode. An admin-controlled alternative to per-claim gating:
@@ -10,25 +11,17 @@ import { getCachedConfig, bustConfigCache } from "./config-cache"
 //                   every generator (Netflix / Prime / Crunchyroll) WITHOUT the
 //                   gateway — still bound by the admin's per-service claim limits.
 //                   After 24h the pass expires and they must pass the link again.
-//
-// We reuse the entire existing reward pipeline: in pass mode the start action mints
-// the reward_sessions row ALREADY unlocked (only ever after a server-side valid-pass
-// check) and skips the gateway redirect; distribution + limits are untouched.
 
 // 24 hours. The window is anchored to the FIRST genuine gateway completion (see
-// grantPass — it uses SET NX so repeat claims inside the window never extend it).
+// grantPass — repeat claims inside the window never extend it).
 export const PASS_TTL_SECONDS = 24 * 60 * 60
 
 // ── Mode toggle (admin) ──────────────────────────────────────────────────────
-// Low-cardinality, read on generator page loads / start actions, so it's fronted
-// by the same short in-process cache as the other site config flags.
 const MODE_KEY = "site:access-pass-mode"
 const MODE_CACHE_KEY = "access-pass-mode"
 const MODE_CACHE_TTL_MS = 30_000
 
-// Is Access Pass mode enabled? Fails OPEN to false (i.e. today's per-claim gating)
-// whenever Redis is down/unset — a flaky DB must never accidentally give away the
-// gateway. Fail-safe toward the paying gate.
+// Fails to false (per-claim gating) whenever Redis is down/unset.
 export async function isAccessPassMode(): Promise<boolean> {
   if (!redisEnabled) return false
   return getCachedConfig(MODE_CACHE_KEY, MODE_CACHE_TTL_MS, async () => {
@@ -40,9 +33,6 @@ export async function isAccessPassMode(): Promise<boolean> {
   })
 }
 
-// Persists the mode. Like the other WRITE paths, this does NOT swallow failures:
-// if the admin's change didn't persist they must know. Busts this instance's cache
-// so the admin sees the change immediately; others converge within the TTL.
 export async function setAccessPassMode(next: boolean): Promise<boolean> {
   if (!redisEnabled) {
     throw new Error("Storage is not configured, so Access Pass mode can't be saved.")
@@ -52,152 +42,158 @@ export async function setAccessPassMode(next: boolean): Promise<boolean> {
   return next
 }
 
-// ── Per-device pass ──────────────────────────────────────────────────────────
-// A single gateway completion earns a 24h pass anchored ONLY to the signed,
-// HTTP-only device id. This is deliberately DEVICE-ONLY (not IP):
+// ── Per-device pass (stored in Neon Postgres) ────────────────────────────────
+// One row per signed, HTTP-only device id (the primary key makes every unlock
+// unique to a device). A pass is DEVICE-ONLY — never IP-based — so completing the
+// gateway on one device can never unlock anyone else. Clearing cookies drops the
+// device id and therefore the pass. Expiry is enforced by comparing expires_at to
+// the database clock on every read, so a pass locks again exactly at 24h.
 //
-//   • The pass GRANTS free access (it lets a user skip the gateway). If it were
-//     also anchored to the IP, then ONE person completing the ShrinkEarn link would
-//     unlock EVERYONE sharing that public IP — carrier-grade NAT, home Wi-Fi, a
-//     shared VPN — so users who never did the link would get in for free. That is
-//     exactly the leak we must avoid: a user is only unlocked if THEIR device
-//     completed the link.
-//   • Anti-abuse still lives elsewhere: the per-service CLAIM limits in
-//     lib/rate-limit are enforced on IP AND device, unchanged. The pass only decides
-//     "gateway vs no gateway", never how many accounts can be taken.
-//   • Clearing cookies drops the device id and therefore the pass, so the user must
-//     pass the link again — strictly MORE restrictive, which is the safe direction.
-//
-// NOT cached — per-user and must always be fresh; only read on page loads / starts.
-function passKey(deviceId: string): string {
-  return `pass:${deviceId}`
+// kind: 'timed'     → earned by a gateway completion, expires_at = +24h
+//       'temporary' → earned by a CMF key, expires_at = +24h, re-checked against the key
+//       'lifetime'  → earned by a CML key, expires_at NULL, re-checked against the key
+let schemaReady: Promise<void> | null = null
+async function ensureTable() {
+  if (!sql) throw new Error("Database is not configured")
+  schemaReady ??= (async () => {
+    await sql`CREATE TABLE IF NOT EXISTS device_passes (device_id TEXT PRIMARY KEY, kind TEXT NOT NULL, code_id BIGINT, expires_at TIMESTAMPTZ, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW())`
+    await sql`CREATE INDEX IF NOT EXISTS device_passes_expires_idx ON device_passes (expires_at)`
+  })().catch((error) => {
+    schemaReady = null
+    throw error
+  })
+  return schemaReady
 }
 
 export type PassState = { valid: boolean; expiresAt: number | null; accessCodeId?: number }
 
-// Grants the 24h pass for this device, anchored to now via SET ... NX EX so it only
-// creates the window when one doesn't already exist — repeat claims inside the 24h
-// are no-ops that can NEVER silently extend it. Returns the effective expiry (the
-// existing value when NX was a no-op), or null on empty id / Redis down / error.
-export async function grantPass(deviceId: string, codeId?: number): Promise<number | null> {
-  if (!redisEnabled || !deviceId) return null
-  const expiresAt = Date.now() + PASS_TTL_SECONDS * 1000
+const LOCKED: PassState = { valid: false, expiresAt: null }
+
+async function clearNotifyKeys(deviceId: string) {
+  if (!redisEnabled) return
   try {
-    const created = await redis.set(passKey(deviceId), codeId ? `temporary:${codeId}:${expiresAt}` : expiresAt, { nx: true, ex: PASS_TTL_SECONDS })
-    if (created) {
-      await redis.set(`pass-expiry:${deviceId}`, expiresAt, { ex: PASS_TTL_SECONDS + 86400 })
+    await redis.del(`pass-expiry:${deviceId}`, `pass-reset-notified:${deviceId}`)
+  } catch {
+    // best effort — Telegram reset notices only
+  }
+}
+
+// Grants the 24h pass for this device. Only creates a new window when none is
+// active (a missing or already-expired row), so repeat claims inside the 24h can
+// NEVER extend it. Returns the effective expiry in ms, or null on empty id / error.
+export async function grantPass(deviceId: string, codeId?: number): Promise<number | null> {
+  if (!sql || !deviceId) return null
+  try {
+    await ensureTable()
+    const kind = codeId ? "temporary" : "timed"
+    const created = await sql`
+      INSERT INTO device_passes (device_id, kind, code_id, expires_at)
+      VALUES (${deviceId}, ${kind}, ${codeId ?? null}, NOW() + (${PASS_TTL_SECONDS} * INTERVAL '1 second'))
+      ON CONFLICT (device_id) DO UPDATE
+        SET kind = EXCLUDED.kind, code_id = EXCLUDED.code_id, expires_at = EXCLUDED.expires_at, created_at = NOW()
+        WHERE device_passes.expires_at IS NOT NULL AND device_passes.expires_at <= NOW()
+      RETURNING (EXTRACT(EPOCH FROM expires_at) * 1000)::BIGINT AS "expiresAt"`
+    if (created[0]) {
+      const expiresAt = Number(created[0].expiresAt)
+      if (redisEnabled) {
+        try {
+          await redis.set(`pass-expiry:${deviceId}`, expiresAt, { ex: PASS_TTL_SECONDS + 86400 })
+        } catch {
+          // best effort
+        }
+      }
       return expiresAt
     }
-    const existing = await redis.get<number | string>(passKey(deviceId))
-    if (typeof existing === "number") return existing
-    if (typeof existing === "string" && existing.startsWith("temporary:")) {
-      const expiresAt = Number(existing.split(":")[2])
-      return expiresAt > Date.now() ? expiresAt : null
-    }
-    return null
-  } catch {
+    const existing = await sql`SELECT (EXTRACT(EPOCH FROM expires_at) * 1000)::BIGINT AS "expiresAt" FROM device_passes WHERE device_id = ${deviceId} AND expires_at > NOW()`
+    return existing[0] ? Number(existing[0].expiresAt) : null
+  } catch (error) {
+    console.error("[access-pass] grantPass failed", error)
     return null
   }
 }
 
-// Reads this device's pass. Valid only when the device's own key exists AND is still
-// in the future. Fails to invalid (→ gateway), which is the fail-safe direction, so a
-// user with no device id (or a Redis blip) is treated as locked and must do the link.
-// Grants permanent access for a redeemed lifetime code. The key has no TTL and
-// remains bound to the same signed device id until an admin or database action clears it.
+// Grants permanent access for a redeemed lifetime key, bound to this device id.
 export async function grantLifetimePass(deviceId: string, codeId?: number): Promise<boolean> {
-  if (!redisEnabled || !deviceId) return false
+  // Lifetime access must carry a database key id so revocation can be verified.
+  if (!sql || !deviceId || !codeId) return false
   try {
-    await redis.set(passKey(deviceId), codeId ? `lifetime:${codeId}` : "lifetime")
+    await ensureTable()
+    await sql`
+      INSERT INTO device_passes (device_id, kind, code_id, expires_at)
+      VALUES (${deviceId}, 'lifetime', ${codeId}, NULL)
+      ON CONFLICT (device_id) DO UPDATE
+        SET kind = 'lifetime', code_id = EXCLUDED.code_id, expires_at = NULL, created_at = NOW()`
     return true
-  } catch {
+  } catch (error) {
+    console.error("[access-pass] grantLifetimePass failed", error)
     return false
   }
 }
 
 export async function revokeLifetimePass(deviceId: string): Promise<boolean> {
-  if (!redisEnabled || !deviceId) return false
+  if (!sql || !deviceId) return false
   try {
-    await redis.del(passKey(deviceId), `pass-expiry:${deviceId}`, `pass-reset-notified:${deviceId}`)
+    await ensureTable()
+    await sql`DELETE FROM device_passes WHERE device_id = ${deviceId}`
+    await clearNotifyKeys(deviceId)
     return true
   } catch {
     return false
   }
 }
 
+// Reads this device's pass. Fails to locked on any error or missing device id.
 export async function getPass(deviceId: string): Promise<PassState> {
-  if (!redisEnabled || !deviceId) return { valid: false, expiresAt: null }
+  if (!sql || !deviceId) return LOCKED
   try {
-    const val = await redis.get<number | string>(passKey(deviceId))
-    // Lifetime access must always carry a database key id so revocation and
-    // unbinding can be checked against the authoritative record. Legacy
-    // unscoped values are rejected rather than treated as permanent access.
-    if (val === "lifetime") {
-      await redis.del(passKey(deviceId))
-      return { valid: false, expiresAt: null }
+    await ensureTable()
+    const rows = await sql`SELECT kind, code_id AS "codeId", (EXTRACT(EPOCH FROM expires_at) * 1000)::BIGINT AS "expiresAt", (expires_at IS NOT NULL AND expires_at <= NOW()) AS expired FROM device_passes WHERE device_id = ${deviceId}`
+    const row = rows[0]
+    if (!row) return LOCKED
+
+    if (row.expired) {
+      await sql`DELETE FROM device_passes WHERE device_id = ${deviceId} AND expires_at <= NOW()`
+      await clearNotifyKeys(deviceId)
+      return LOCKED
     }
-    if (typeof val === "string" && val.startsWith("lifetime:")) {
-      const accessCodeId = Number(val.slice(9)) || undefined
-      if (!accessCodeId) return { valid: false, expiresAt: null }
-      // Redis is only a fast cache; re-check the authoritative database record so
-      // admin revocation/deactivation takes effect immediately.
-      const { getAccessCode } = await import("@/lib/access-codes")
-      const code = await getAccessCode(accessCodeId)
-      if (!code || !code.active || code.accessType !== "lifetime" || code.boundDeviceId !== deviceId) {
-        await revokeLifetimePass(deviceId)
-        return { valid: false, expiresAt: null }
-      }
-      return { valid: true, expiresAt: null, accessCodeId }
+
+    const accessCodeId = Number(row.codeId) || undefined
+    const expiresAt = row.expiresAt === null ? null : Number(row.expiresAt)
+
+    if (row.kind === "timed") {
+      return expiresAt ? { valid: true, expiresAt } : LOCKED
     }
-    if (typeof val === "string" && val.startsWith("temporary:")) {
-      const [, codeId, expiry] = val.split(":")
-      const accessCodeId = Number(codeId) || undefined
-      const expiresAt = Number(expiry)
-      if (!accessCodeId || expiresAt <= Date.now()) {
-      await redis.del(`pass:${deviceId}`, `pass-expiry:${deviceId}`, `pass-reset-notified:${deviceId}`)
-      return { valid: false, expiresAt: null }
+
+    // Key-based passes are re-checked against the authoritative access_codes row
+    // so admin revocation/unbinding takes effect immediately.
+    if (!accessCodeId) {
+      await revokeLifetimePass(deviceId)
+      return LOCKED
     }
-      // Temporary passes are also authoritative in the access_codes table. This
-      // makes revoke/unbind invalidate the active session immediately instead of
-      // trusting the remaining Redis TTL.
-      const { getAccessCode } = await import("@/lib/access-codes")
-      const code = await getAccessCode(accessCodeId)
-      if (!code || !code.active || code.accessType !== "temporary" || !code.expiresAt || new Date(code.expiresAt).getTime() <= Date.now() || code.boundDeviceId !== deviceId) {
-        await revokeLifetimePass(deviceId)
-        return { valid: false, expiresAt: null }
-      }
-      return { valid: true, expiresAt, accessCodeId }
+    const { getAccessCode } = await import("@/lib/access-codes")
+    const code = await getAccessCode(accessCodeId)
+    const type = row.kind === "lifetime" ? "lifetime" : "temporary"
+    const codeExpired = type === "temporary" && (!code?.expiresAt || new Date(code.expiresAt).getTime() <= Date.now())
+    if (!code || !code.active || code.accessType !== type || code.boundDeviceId !== deviceId || codeExpired) {
+      await revokeLifetimePass(deviceId)
+      return LOCKED
     }
-    if (typeof val === "number" && val > Date.now()) return { valid: true, expiresAt: val }
-    await redis.del(`pass-expiry:${deviceId}`, `pass-reset-notified:${deviceId}`)
-    return { valid: false, expiresAt: null }
-  } catch {
-    return { valid: false, expiresAt: null }
+    return { valid: true, expiresAt: type === "lifetime" ? null : expiresAt, accessCodeId }
+  } catch (error) {
+    console.error("[access-pass] getPass failed", error)
+    return LOCKED
   }
 }
 
 // ── Per-IP pass-mint cap (defense in depth) ──────────────────────────────────
-// The pass is DEVICE-scoped, so the cheapest abuse is "clear cookies → get a fresh
-// device id → complete the gateway again → mint another pass", repeated in a loop to
-// farm many simultaneous 24h passes from one machine. Each loop still costs a real
-// gateway completion (so it isn't free), and the per-service CLAIM limits already cap
-// output on the IP side — but we add a per-IP ceiling on how many DISTINCT device
-// passes may be minted per rolling 24h as a cheap extra brake on scripted farming.
-//
-// Deliberately GENEROUS: shared public IPs (carrier-grade NAT, school/office Wi-Fi,
-// VPN exit nodes) legitimately host many different people who each complete the
-// gateway on their own device, so a tight cap would lock out real users. 20/day/IP
-// sits well above realistic shared-IP demand yet still stops a runaway mint loop.
-// Fails OPEN (allowed) on any Redis error — a limiter blip must never wrongly refuse
-// a genuine unlock the user already did the gateway work for.
+// Generous ceiling on distinct device passes minted per IP per rolling 24h. Fails
+// OPEN (allowed) on any Redis error or when Redis isn't configured.
 const PASS_MINTS_PER_IP_PER_DAY = 20
 
 function passMintKey(ip: string): string {
   return `pass-mint:${ip}`
 }
 
-// PEEK ONLY — never mutates. True while this IP is still under its daily pass-mint
-// ceiling. Call before granting a pass on the /unlock path.
 export async function passMintAllowed(ip: string): Promise<boolean> {
   if (!redisEnabled || !ip) return true
   try {
@@ -208,9 +204,6 @@ export async function passMintAllowed(ip: string): Promise<boolean> {
   }
 }
 
-// Charges ONE pass-mint against this IP's rolling-24h window. Called only after a
-// genuine pass grant. The TTL is set once (on the first mint) and never refreshed,
-// so the window is anchored to the first mint and auto-clears 24h later.
 export async function recordPassMint(ip: string): Promise<void> {
   if (!redisEnabled || !ip) return
   try {
