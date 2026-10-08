@@ -29,14 +29,17 @@ export type AliveEntry = {
   result: CheckResult
 }
 
-// Stable per-ACCOUNT key so the same account is never stored twice — even if it
-// is re-checked later with a brand-new cookie/session string. We key on the
-// normalized email when we have one (the true account identity); only when an
-// email is unavailable do we fall back to hashing the cookie itself. The unique
-// index on `fingerprint` + the ON CONFLICT upsert then dedups by account.
-function accountFingerprint(email: string | null | undefined, cookie: string): string {
+// Stable per-account key so re-checking a rotating session does not create rows.
+// Prefer the verifier's authoritative accountId, then email, and only fall back to
+// the cookie when the upstream returned neither identity field.
+function accountFingerprint(accountId: string | null | undefined, email: string | null | undefined, cookie: string): string {
+  const normalizedId = accountId?.trim()
   const normalizedEmail = email?.trim().toLowerCase()
-  const basis = normalizedEmail ? `email:${normalizedEmail}` : `cookie:${cookie.trim()}`
+  const basis = normalizedId
+    ? `account:${normalizedId}`
+    : normalizedEmail
+      ? `email:${normalizedEmail}`
+      : `cookie:${cookie.trim()}`
   return createHash("sha256").update(basis).digest("hex")
 }
 
@@ -74,7 +77,7 @@ export async function saveAliveCookies(entries: AliveEntry[]): Promise<{ saved: 
   for (const e of entries) {
     const cookie = e.cookie?.trim()
     if (!cookie) continue
-    byPrint.set(accountFingerprint(e.result?.email, cookie), e)
+    byPrint.set(accountFingerprint(e.result?.accountId, e.result?.email, cookie), e)
   }
 
   let saved = 0
