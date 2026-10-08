@@ -37,7 +37,10 @@ export function CheckerShell({
   active = true,
   allowBulk = true,
   linksOnly = false,
+  belowTelegram,
 }: {
+  // Optional content rendered directly under the Telegram promo card.
+  belowTelegram?: React.ReactNode
   onAlive?: OnAlive
   storageKey?: string
   isAdmin?: boolean
@@ -102,6 +105,7 @@ export function CheckerShell({
   return (
     <div className="flex flex-col gap-5">
       <TelegramPromo />
+      {belowTelegram}
       {/* Tabs — only shown when bulk is available. With bulk hidden there's just the
  single checker, so a one-tab switcher would be pointless. */}
       {allowBulk && (
