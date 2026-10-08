@@ -1,0 +1,115 @@
+"use server"
+
+import { cookies } from "next/headers"
+import { redirect } from "next/navigation"
+import { createRewardSession } from "@/lib/reward-store"
+import { requestIp } from "@/lib/request-ip"
+import { getOrCreateDeviceId } from "@/lib/device-id"
+import { isAccessPassMode, getPass } from "@/lib/access-pass"
+import { buildGatewayUrl } from "@/lib/gateway-url"
+import { redeemAccessCode } from "@/lib/access-codes"
+import { consumeAccessCodeRedemption, consumeUnlockStart } from "@/lib/rate-limit"
+import type { GeneratorService as Service } from "@/lib/check-via-proxies"
+import {
+  REWARD_TOKEN_COOKIE,
+  REWARD_TOKEN_MAX_AGE,
+  parseRewardTokens,
+  serializeRewardTokens,
+} from "@/lib/reward-token-cookie"
+
+// The generator each service maps back to, so a completed unlock returns the user to
+// the page they came from.
+function generatorHref(service: Service): string {
+  return service === "prime"
+    ? "/prime/account-generator"
+    : service === "crunchyroll"
+      ? "/crunchyroll/account-generator"
+      : "/account-generator"
+}
+
+function asService(value: unknown): Service {
+  return value === "prime" ? "prime" : value === "crunchyroll" ? "crunchyroll" : "netflix"
+}
+
+// Starts the dedicated Access Pass unlock. Mints a purpose='pass' reward session and
+// sends the user through the SAME gateway the generators used to use. On genuine
+// completion the gateway flips the session's unlocked flag and returns to
+// /reward-callback, which grants a 24h device pass and hands out NO account. After
+// that the generators run gateway-free for 24h (still under the per-service limits).
+//
+// If the device already holds a valid pass we skip straight to the generator — no need
+// to make a pass holder pass the gate again.
+export async function signInWithLifetimeKey(formData: FormData): Promise<void> {
+  const code = String(formData.get("accessCode") ?? "")
+  const next = String(formData.get("next") ?? "")
+  const safeNext = next.startsWith("/") && !next.startsWith("//") ? next : "/account-generator"
+  const deviceId = await getOrCreateDeviceId()
+  const result = await redeemAccessCode(code, deviceId)
+  if (!result.ok || result.accessType !== "lifetime") {
+    redirect(`/login?next=${encodeURIComponent(safeNext)}&error=${encodeURIComponent(result.ok ? "Only lifetime keys can be used here." : result.error)}`)
+  }
+  const { grantLifetimePass } = await import("@/lib/access-pass")
+  const granted = await grantLifetimePass(deviceId, result.codeId)
+  if (!granted) redirect(`/login?next=${encodeURIComponent(safeNext)}&error=${encodeURIComponent("Access storage is unavailable. Please try again.")}`)
+  redirect(safeNext)
+}
+
+export async function redeemUnlockCode(formData: FormData): Promise<void> {
+  const service = asService(formData.get("service"))
+  const code = String(formData.get("accessCode") ?? "")
+  const deviceId = await getOrCreateDeviceId()
+  const ip = await requestIp()
+  const redemptionLimit = await consumeAccessCodeRedemption(ip, deviceId)
+  if (!redemptionLimit.success) {
+    const retryAfter = Math.max(1, Math.ceil((redemptionLimit.reset - Date.now()) / 1000))
+    redirect(`/unlock?service=${service}&error=${encodeURIComponent(`Too many redemption attempts. Try again in ${retryAfter} seconds.`)}`)
+  }
+  const result = await redeemAccessCode(code, deviceId)
+  if (!result.ok) redirect(`/unlock?service=${service}&error=${encodeURIComponent(result.error)}`)
+  const { grantLifetimePass, grantPass } = await import("@/lib/access-pass")
+  const existingPass = result.accessType === "temporary" ? await getPass(deviceId) : null
+  const granted = result.accessType === "temporary"
+    ? (existingPass?.valid ? existingPass.expiresAt ?? Date.now() + 1 : await grantPass(deviceId, result.codeId))
+    : await grantLifetimePass(deviceId, result.codeId)
+  if (!granted) redirect(`/unlock?service=${service}&error=${encodeURIComponent("Access code storage is unavailable. Please try again.")}`)
+  redirect(generatorHref(service) + (result.accessType === "temporary" ? "?access=code&temporary=true" : "?access=code&lifetime=true"))
+}
+
+export async function startUnlock(formData: FormData): Promise<void> {
+  const service = asService(formData.get("service"))
+
+  // Feature off → the unlock page is meaningless; send them to the generator.
+  if (!(await isAccessPassMode())) redirect(generatorHref(service))
+
+  const ip = await requestIp()
+  const store = await cookies()
+  const telegramUserId = store.get("cm_telegram_subject")?.value
+  if (!telegramUserId) redirect(`/login?next=${encodeURIComponent(`/unlock?service=${service}`)}`)
+  const deviceId = await getOrCreateDeviceId()
+
+  // Already unlocked → don't gate a valid pass holder again.
+  if (deviceId && (await getPass(deviceId)).valid) redirect(generatorHref(service))
+
+  const unlockLimit = await consumeUnlockStart(ip, deviceId)
+  if (!unlockLimit.success) {
+    const retryAfter = Math.max(1, Math.ceil((unlockLimit.reset - Date.now()) / 1000))
+    redirect(`/unlock?service=${service}&error=${encodeURIComponent(`Too many unlock attempts. Try again in ${retryAfter} seconds.`)}`)
+  }
+
+  // Pass-only session: no plan/country, purpose='pass'. `service` is remembered so
+  // /reward-callback can send the user back to the right generator after success.
+  const token = await createRewardSession(null, null, service, { purpose: "pass" })
+
+  const rewardStore = await cookies()
+  const existing = parseRewardTokens(rewardStore.get(REWARD_TOKEN_COOKIE)?.value)
+  rewardStore.set(REWARD_TOKEN_COOKIE, serializeRewardTokens(token, existing), {
+    httpOnly: true,
+    sameSite: "lax",
+    secure: true,
+    path: "/",
+    maxAge: REWARD_TOKEN_MAX_AGE,
+  })
+
+  const gatewayUrl = await buildGatewayUrl(token, ip)
+  redirect(gatewayUrl)
+}
