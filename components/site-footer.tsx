@@ -1,6 +1,5 @@
 import Image from "next/image"
 import { Lock } from "lucide-react"
-import { SoundToggle } from "@/components/sound-toggle"
 import type { CheckerVisibility } from "@/lib/checker-visibility"
 
 export async function SiteFooter({ width = "max-w-6xl", visibility: _visibility }: { width?: string; visibility?: CheckerVisibility }) {
@@ -15,8 +14,9 @@ export async function SiteFooter({ width = "max-w-6xl", visibility: _visibility 
           className="h-auto w-[150px]"
           priority
         />
-        <SoundToggle />
+        <p className="-mt-2 text-sm text-muted-foreground">Fastest Netflix Cookies Checker</p>
         <div className="flex flex-col items-center gap-2 border-t border-border pt-5 text-[11px] text-muted-foreground sm:flex-row sm:gap-4">
+
           <span className="inline-flex items-center gap-1.5 tracking-wide">
             <Lock className="size-3.5 text-primary" aria-hidden />
             Developed by kasumi.
