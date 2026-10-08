@@ -60,7 +60,7 @@ export async function redeemUnlockCode(formData: FormData): Promise<void> {
   redirect(generatorHref(service) + (result.accessType === "temporary" ? "?access=code&temporary=true" : "?access=code&lifetime=true"))
 }
 
-async function startUnlockInternal(formData: FormData): Promise<void> {
+export async function startUnlock(formData: FormData): Promise<void> {
   const service = asService(formData.get("service"))
 
   // Netflix is always protected by the 24-hour pass. Other services retain the
@@ -104,15 +104,5 @@ async function startUnlockInternal(formData: FormData): Promise<void> {
     redirect(`/unlock?service=netflix&error=${encodeURIComponent("The NF unlock gateway is temporarily unavailable. Please try again.")}`)
   }
   redirect(gatewayUrl)
-}
-
-export async function startUnlock(formData: FormData): Promise<void> {
-  try {
-    await startUnlockInternal(formData)
-  } catch (error) {
-    console.error("[v0] NF unlock action failed", error)
-    const detail = error instanceof Error ? error.message : String(error)
-    redirect(`/unlock?service=netflix&error=${encodeURIComponent(`Unlock failed: ${detail.slice(0, 180)}`)}`)
-  }
 }
 
