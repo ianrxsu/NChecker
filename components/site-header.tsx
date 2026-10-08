@@ -23,7 +23,7 @@ export function SiteHeader({ width = "max-w-6xl", cta = "free-account", service 
   const [menuOpen, setMenuOpen] = useState(false)
   const cfg = SERVICES[service]
   const action = cta === "checker" ? { href: cfg.home, label: "Open checker" }
-    : cta === "free-account" ? { href: cfg.generator, label: "Get an account" }
+    : cta === "free-account" ? { href: "https://cookiesmo.i4n.tech", label: "Account Generator" }
     : cta === "multi-service" ? { href: "/#accounts", label: "Explore accounts" } : null
   return (
     <header className="public-header sticky top-0 z-30 border-b border-border bg-background/95 text-foreground backdrop-blur-lg">
