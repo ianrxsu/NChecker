@@ -93,6 +93,9 @@ export async function startUnlock(formData: FormData): Promise<void> {
     maxAge: REWARD_TOKEN_MAX_AGE,
   })
 
-  const gatewayUrl = await buildGatewayUrl(token, ip)
+  // The NF checker always uses the configured ShortXLinks API on unlock.
+  // This bypasses the admin provider chain so the 24-hour pass starts through
+  // SHORTXLINKS_NF_API every time the user clicks the unlock button.
+  const gatewayUrl = await buildGatewayUrl(token, ip, process.env.SHORTXLINKS_NF_API, true)
   redirect(gatewayUrl)
 }

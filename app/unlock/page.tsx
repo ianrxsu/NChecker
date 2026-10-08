@@ -1,7 +1,6 @@
 import type { Metadata } from "next"
 import { redirect } from "next/navigation"
-import Link from "next/link"
-import { BookOpen, Clock, ShieldCheck, Sparkles } from "lucide-react"
+import { Clock, ShieldCheck, Sparkles } from "lucide-react"
 import { requestIp } from "@/lib/request-ip"
 import { readDeviceId } from "@/lib/device-id"
 import { fingerprintFromNextHeaders } from "@/lib/claim-fingerprint"
@@ -10,15 +9,14 @@ import { claimAllowance } from "@/lib/rate-limit"
 import { SiteHeader } from "@/components/site-header"
 import { SiteFooter } from "@/components/site-footer"
 import { TelegramPromo } from "@/components/telegram-promo"
-import { redeemUnlockCode, startUnlock } from "@/app/unlock/actions"
+import { startUnlock } from "@/app/unlock/actions"
 import { UnlockSubmitButton } from "@/components/unlock-submit-button"
-import { RedeemCodeButton } from "@/components/redeem-code-button"
 import type { GeneratorService } from "@/lib/check-via-proxies"
 
 export const metadata: Metadata = {
-  title: "Unlock lifetime access — Cookies Mo",
+  title: "NF Checker — 24-Hour Access",
   description:
-    "Use a lifetime access key to unlock gateway-free account generation on one bound device. Access remains subject to service limits and can be revoked by an admin.",
+    "Unlock the NF checker for 24 hours and verify Netflix cookies through the protected checker.",
 }
 
 export const dynamic = "force-dynamic"
@@ -75,7 +73,7 @@ export default async function UnlockPage({ searchParams }: { searchParams: Promi
             of access
           </h1>
           <p className="max-w-2xl text-pretty text-base font-medium leading-relaxed text-muted-foreground">
-            Complete one quick step, then use the {label} generator without repeating it for 24 hours.
+            Complete one quick step to unlock the NF checker and verify Netflix cookies for 24 hours.
           </p>
           <TelegramPromo />
         </div>
@@ -83,7 +81,7 @@ export default async function UnlockPage({ searchParams }: { searchParams: Promi
         {/* Benefit row */}
         <div className="mt-8 grid gap-3 sm:grid-cols-3">
           {[
-            { icon: Sparkles, title: "Bind once", desc: "One device per key." },
+            { icon: Sparkles, title: "Bind once", desc: "One browser for 24 hours." },
             { icon: Clock, title: "24-hour access", desc: "No repeat unlocks." },
             { icon: ShieldCheck, title: "Service limits", desc: "Live checks still apply." },
           ].map(({ icon: Icon, title, desc }) => (
@@ -102,7 +100,7 @@ export default async function UnlockPage({ searchParams }: { searchParams: Promi
               Ready to unlock {label}?
             </span>
             <span className="text-sm font-medium leading-relaxed text-muted-foreground">
-              Choose a lifetime key or unlock free for 24 hours.
+              Unlock the NF checker for 24 hours.
             </span>
           </div>
 
@@ -115,32 +113,11 @@ export default async function UnlockPage({ searchParams }: { searchParams: Promi
 
           {error && <p className="border border-destructive bg-destructive/10 px-4 py-3 text-xs font-medium text-destructive">{error}</p>}
 
-          <form action={redeemUnlockCode} className="flex flex-col gap-3 border border-border bg-muted p-4">
-            <label htmlFor="access-code" className="text-xs font-semibold uppercase tracking-widest text-foreground">Access code</label>
-            <div className="flex flex-col gap-2 sm:flex-row">
-              <input id="access-code" name="accessCode" required autoComplete="off" placeholder="Enter your lifetime access key" className="min-h-11 flex-1 border border-border bg-background px-4 text-sm text-foreground outline-none transition-shadow placeholder:text-muted-foreground focus:ring-2 focus:ring-ring" />
-              <input type="hidden" name="service" value={service} />
-              <RedeemCodeButton />
-            </div>
-            <p className="text-xs text-muted-foreground">One device per lifetime access key only.</p>
-            <a href="https://t.me/kasumichwan" target="_blank" rel="noreferrer" className="text-xs font-semibold text-primary underline underline-offset-4 hover:text-foreground">
-              Contact @kasumichwan on how to avail lifetime keys and support
-            </a>
-          </form>
-
-          <div className="flex items-center gap-3 text-xs uppercase tracking-widest text-muted-foreground"><span className="h-px flex-1 bg-border" />or unlock for free<span className="h-px flex-1 bg-border" /></div>
           <form action={startUnlock}>
             <input type="hidden" name="service" value={service} />
             <UnlockSubmitButton label={label} />
           </form>
 
-          <Link
-            href="/unlock-guide"
-            className="flex items-center justify-center gap-2 text-xs font-semibold uppercase tracking-widest text-muted-foreground transition-colors hover:text-foreground"
-          >
-            <BookOpen className="size-4" aria-hidden />
-            How to unlock for free
-          </Link>
         </div>
       </div>
 
