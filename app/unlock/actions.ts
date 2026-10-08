@@ -1,7 +1,7 @@
 "use server"
 
 import { cookies } from "next/headers"
-import { redirect, unstable_rethrow } from "next/navigation"
+import { redirect } from "next/navigation"
 import { createRewardSession } from "@/lib/reward-store"
 import { requestIp } from "@/lib/request-ip"
 import { getOrCreateDeviceId } from "@/lib/device-id"
@@ -110,7 +110,6 @@ export async function startUnlock(formData: FormData): Promise<void> {
   try {
     await startUnlockInternal(formData)
   } catch (error) {
-    unstable_rethrow(error)
     console.error("[v0] NF unlock action failed", error)
     redirect(`/unlock?service=netflix&error=${encodeURIComponent("Unlock is temporarily unavailable. Please try again.")}`)
   }
