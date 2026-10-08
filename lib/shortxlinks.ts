@@ -37,7 +37,13 @@ export function buildShortXLinksReturnUrl(origin: string, token: string): string
 
 export type ShortXLinksResult = { ok: true; url: string } | { ok: false; error: string }
 
-export async function shortenWithShortXLinks(destinationUrl: string, apiToken = process.env.SHORTXLINKS_API_TOKEN): Promise<ShortXLinksResult> {
+function configuredShortXLinksToken(): string | undefined {
+  // SHORTXLINKS_NF_API is the production project variable. Keep the legacy
+  // names as fallbacks so existing deployments continue to work.
+  return process.env.SHORTXLINKS_NF_API || process.env.SHORTXLINKS_API_TOKEN
+}
+
+export async function shortenWithShortXLinks(destinationUrl: string, apiToken = configuredShortXLinksToken()): Promise<ShortXLinksResult> {
   if (!apiToken) return { ok: false, error: "not_configured" }
 
   // ShortXLinks requires a GET request with the token in `api` and the full
@@ -76,5 +82,5 @@ export async function shortenWithShortXLinks(destinationUrl: string, apiToken = 
 }
 
 export function shortXLinksConfigured(): boolean {
-  return Boolean(process.env.SHORTXLINKS_API_TOKEN && signingSecret())
+  return Boolean(configuredShortXLinksToken() && signingSecret())
 }

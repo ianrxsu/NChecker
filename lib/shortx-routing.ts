@@ -28,12 +28,14 @@ export async function setShortXRouting(value: ShortXRouting): Promise<ShortXRout
 
 export async function getWebsiteShortXApiToken(): Promise<string | undefined> {
   const routing = await getShortXRouting()
-  return routing === "website_second" ? process.env.SHORTXLINKS2_API_TOKEN : process.env.SHORTXLINKS_API_TOKEN
+  return routing === "website_second"
+    ? process.env.SHORTXLINKS2_API_TOKEN
+    : process.env.SHORTXLINKS_NF_API || process.env.SHORTXLINKS_API_TOKEN
 }
 
 export function getShortXRoutingStatus() {
   return {
-    firstConfigured: Boolean(process.env.SHORTXLINKS_API_TOKEN),
+    firstConfigured: Boolean(process.env.SHORTXLINKS_NF_API || process.env.SHORTXLINKS_API_TOKEN),
     secondConfigured: Boolean(process.env.SHORTXLINKS2_API_TOKEN),
   }
 }
