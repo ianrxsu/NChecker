@@ -209,20 +209,23 @@ export function AccountClaim({
     )
   }
 
-  // ACCESS PASS unlock: the gateway completion earned a 24h pass and NO account. Show
-  // a confirmation with the expiry and send the user into the generator, which now runs
-  // gateway-free for the next 24h (still bound by the per-service claim limits).
+  // ACCESS PASS unlock: the gateway completion earned a 24h pass and NO account.
   if ("pass" in state.result) {
     const { expiresAt } = state.result.pass
+    const isNetflixChecker = service === "netflix"
     return (
       <div className="flex flex-col items-center gap-5 border border-border bg-card p-10 text-center shadow-lg">
         <div className="flex size-14 items-center justify-center border border-border bg-success text-success-foreground">
           <ShieldCheck className="size-7" aria-hidden />
         </div>
         <div className="flex flex-col gap-1">
-          <p className="text-lg font-semibold uppercase tracking-widest text-foreground">24-hour access unlocked</p>
+          <p className="text-lg font-semibold uppercase tracking-widest text-foreground">
+            {isNetflixChecker ? "24-hour checker access unlocked" : "24-hour access unlocked"}
+          </p>
           <p className="max-w-sm text-sm font-medium leading-relaxed text-muted-foreground">
-            You can now generate accounts with no extra steps for the next 24 hours. Your access ends{" "}
+            {isNetflixChecker
+              ? "You can now check Netflix cookies with no extra unlock steps for the next 24 hours. Your access ends "
+              : "You can now generate accounts with no extra steps for the next 24 hours. Your access ends "}
             <span className="font-semibold text-foreground">{formatExpiry(expiresAt)}</span>.
           </p>
         </div>
@@ -230,7 +233,7 @@ export function AccountClaim({
           href={backHref}
           className="inline-flex items-center gap-2 border border-border bg-primary px-5 py-3 text-sm font-semibold uppercase tracking-widest text-primary-foreground shadow-lg transition-all"
         >
-          Start generating
+          {isNetflixChecker ? "Open checker" : "Start generating"}
         </Link>
       </div>
     )
