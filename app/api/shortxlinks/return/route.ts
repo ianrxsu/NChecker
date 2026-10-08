@@ -4,6 +4,8 @@ import { redis, redisEnabled } from "@/lib/redis"
 import { clearFreeClaimBuckets, grantNetflixExtension } from "@/lib/rate-limit"
 import { getClaimLimits } from "@/lib/claim-limits"
 import { grantPass } from "@/lib/access-pass"
+import { getOrCreateDeviceId } from "@/lib/device-id"
+import { consumePassSession } from "@/lib/reward-store"
 import {
   SHORTXLINKS_MIN_DWELL_SECONDS,
   verifyShortXLinksSig,
@@ -96,6 +98,19 @@ export async function GET(req: Request): Promise<Response> {
 
   const { markRewardUnlocked } = await import("@/lib/reward-store")
   await markRewardUnlocked(token, sig, clientIp(req))
+
+  // Pass sessions are unlocked by the signed ShortXLinks return, then consumed
+  // exactly once and converted into the device-bound 24-hour pass. Account
+  // sessions continue through the existing reward callback flow below.
+  const passSession = await consumePassSession(token)
+  if (passSession) {
+    const deviceId = await getOrCreateDeviceId()
+    const expiresAt = await grantPass(deviceId)
+    if (!expiresAt) return reject(CANONICAL_ORIGIN, "access")
+    void import("@/lib/metrics").then(({ recordGatewayCompletion }) => recordGatewayCompletion())
+    return NextResponse.redirect(new URL(`/netflix?access=unlocked`, CANONICAL_ORIGIN), { status: 303 })
+  }
+
   void import("@/lib/metrics").then(({ recordGatewayCompletion }) => recordGatewayCompletion())
 
   const res = NextResponse.redirect(new URL(`/reward-callback?r=${encodeURIComponent(token)}`, CANONICAL_ORIGIN), {
