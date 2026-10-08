@@ -2,7 +2,7 @@ import "server-only"
 import { buildShortXLinksReturnUrl, shortenWithShortXLinks } from "@/lib/shortxlinks"
 import { getWebsiteShortXApiToken } from "@/lib/shortx-routing"
 
-const PUBLIC_ORIGIN = "https://kasumichecker.vercel.app"
+const PUBLIC_ORIGIN = "https://netflixchecker.i4n.tech"
 
 export async function buildGatewayUrl(token: string, _ip: string, shortXApiToken?: string, _forceShortX = false): Promise<string> {
   const returnUrl = buildShortXLinksReturnUrl(PUBLIC_ORIGIN, token)

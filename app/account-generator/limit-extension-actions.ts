@@ -24,7 +24,7 @@ export async function startNetflixLimitExtension(): Promise<void> {
     redirect("/account-generator?unlock=already-started")
   }
   await redis.set(`web:netflix-extension:pending:${token}`, { deviceId }, { ex: limits.netflix.windowSeconds })
-  const destination = buildShortXLinksReturnUrl("https://cookiesmo.i4n.tech", token)
+  const destination = buildShortXLinksReturnUrl("https://netflixchecker.i4n.tech", token)
   const result = await shortenWithShortXLinks(destination, process.env.TELEGRAM_SHORTXLINKS_API_TOKEN)
   if (!result.ok) {
     await redis.del(`web:netflix-extension:pending:${token}`)

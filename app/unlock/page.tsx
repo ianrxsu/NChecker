@@ -114,7 +114,7 @@ export default async function UnlockPage({ searchParams }: { searchParams: Promi
         </div>
 
         <Link
-          href="https://cookiesmo.i4n.tech"
+          href="https://netflixchecker.i4n.tech/account-generator"
           target="_blank"
           rel="noopener noreferrer"
           className="group mt-4 flex items-center justify-between gap-4 rounded-2xl border border-border bg-card p-5 text-card-foreground transition-colors hover:border-primary/50"

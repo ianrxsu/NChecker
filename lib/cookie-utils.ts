@@ -1381,7 +1381,7 @@ export function setLabel(text: string): string {
   return text.slice(0, 24)
 }
 
-const DETAILS_CREDIT = "cookiesmo.i4n.tech"
+const DETAILS_CREDIT = "netflixchecker.i4n.tech"
 
 // Pretty labels for known raw API keys so unmapped extras still read cleanly.
 const RAW_KEY_LABELS: Record<string, string> = {

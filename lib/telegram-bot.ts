@@ -233,7 +233,7 @@ async function createTelegramUnlock(chatId: string, userId: string, service: Gen
   await redis.set(`telegram:shortx:pending:${token}`, { chatId, userId, service }, { ex: 3600 })
   await redis.set(`telegram:shortx:active:${userId}`, token, { ex: 3600 })
   try {
-    const configuredOrigin = "https://cookiesmo.i4n.tech"
+    const configuredOrigin = "https://netflixchecker.i4n.tech"
     const returnUrl = buildShortXLinksReturnUrl(configuredOrigin, token)
     const result = await shortenWithShortXLinks(returnUrl, process.env.TELEGRAM_SHORTXLINKS_API_TOKEN)
     if (!result.ok) {

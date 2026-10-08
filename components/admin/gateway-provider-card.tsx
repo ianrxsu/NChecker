@@ -26,7 +26,7 @@ const OPTIONS: {
     label: "ShortXLinks only",
     icon: Scissors,
     strength: "medium",
-    blurb: "All unlocks use ShortXLinks and return to kasumichecker.vercel.app. No other gateway is available.",
+    blurb: "All unlocks use ShortXLinks and return to netflixchecker.i4n.tech. No other gateway is available.",
   },
 ]
 
