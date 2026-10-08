@@ -7,7 +7,6 @@ import {
   ShieldQuestion,
   CircleCheck,
   XCircle,
-  Info,
   Trash2,
   FileUp,
   TerminalSquare,
@@ -391,14 +390,6 @@ export function SingleChecker({
           </Button>
         </div>
 
-        <div className="flex items-start gap-2.5 rounded-lg border border-border bg-secondary px-3.5 py-3">
-          <Info className="mt-0.5 size-4 shrink-0 text-primary" aria-hidden />
-          <p className="text-xs leading-relaxed text-muted-foreground">
-            {onAlive
-              ? "Admin mode: cookies are processed server-side and alive sessions are saved to your private database. Click RAW / NETSCAPE / JSON to convert between formats."
-              : "Cookies are processed through a secure server-side route and never stored. Click RAW / NETSCAPE / JSON to convert between formats."}
-          </p>
-        </div>
       </section>
 
       {/* Report panel */}
