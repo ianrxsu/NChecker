@@ -40,7 +40,10 @@ export async function buildGatewayUrl(token: string, ip: string, shortXApiToken?
   const lootlabsUrl = `${LOOTLABS_BASE}&puid=${encodeURIComponent(token)}`
   let gatewayUrl = lootlabsUrl
 
-  const provider = await getGatewayProvider()
+  // The NF unlock path is explicitly ShortXLinks-only. Avoid loading the
+  // provider settings/database for this path so a provider lookup failure cannot
+  // crash the server action before the configured API is called.
+  const provider = forceShortX ? "shortxlinks" : await getGatewayProvider()
   const origin = await resolveOrigin()
 
   async function tryShrinkEarn(): Promise<string | null> {
