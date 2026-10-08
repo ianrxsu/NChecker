@@ -21,7 +21,7 @@ export function UnlockSubmitButton({ label }: { label: string }) {
       {pending ? (
         <>
           <Loader2 className="size-5 animate-spin" aria-hidden />
-          Preparing your step…
+          Preparing your checker access…
         </>
       ) : (
         <>
@@ -30,7 +30,7 @@ export function UnlockSubmitButton({ label }: { label: string }) {
         </>
       )}
       <span className="sr-only" aria-live="polite">
-        {pending ? `Preparing your unlock step for ${label}` : ""}
+        {pending ? `Preparing your ${label} checker access` : ""}
       </span>
     </button>
   )

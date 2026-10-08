@@ -1,6 +1,7 @@
 import type { Metadata } from "next"
 import { redirect } from "next/navigation"
-import { Clock, ShieldCheck, Sparkles } from "lucide-react"
+import { ArrowUpRight, ShieldCheck } from "lucide-react"
+import Link from "next/link"
 import { requestIp } from "@/lib/request-ip"
 import { readDeviceId } from "@/lib/device-id"
 import { fingerprintFromNextHeaders } from "@/lib/claim-fingerprint"
@@ -63,7 +64,7 @@ export default async function UnlockPage({ searchParams }: { searchParams: Promi
 
   return (
     <main className="flex min-h-svh flex-col text-foreground">
-      <SiteHeader cta="checker" service={service} />
+      <SiteHeader cta="free-account" service={service} />
 
       <div className="mx-auto flex w-full max-w-3xl flex-1 flex-col px-4 py-10 sm:px-6 sm:py-14">
         <div className="flex flex-col gap-3">
@@ -80,22 +81,13 @@ export default async function UnlockPage({ searchParams }: { searchParams: Promi
           <TelegramPromo />
         </div>
 
-        {/* Benefit row */}
-        <div className="mt-8 grid gap-3 sm:grid-cols-3">
-          {[
-            { icon: Sparkles, title: "Bind once", desc: "One browser for 24 hours." },
-            { icon: Clock, title: "24-hour access", desc: "No repeat unlocks." },
-            { icon: ShieldCheck, title: "Service limits", desc: "Live checks still apply." },
-          ].map(({ icon: Icon, title, desc }) => (
-            <div key={title} className="flex flex-col gap-2 border border-border bg-card p-4">
-              <Icon className="size-5 text-accent" aria-hidden />
-              <span className="text-sm font-semibold uppercase tracking-tight text-foreground">{title}</span>
-              <span className="text-xs font-medium leading-relaxed text-muted-foreground">{desc}</span>
-            </div>
-          ))}
-        </div>
+        {pass.valid && pass.expiresAt && (
+          <div className="mt-4 rounded-2xl border border-accent/40 bg-accent/10 p-4">
+            <AccessPassCountdown expiresAt={pass.expiresAt} />
+          </div>
+        )}
 
-        {/* Action card */}
+        {/* Unlock card */}
         <div className="mt-8 flex flex-col gap-6 rounded-3xl border border-border bg-card p-6 text-card-foreground sm:p-8">
           <div className="flex flex-col gap-1">
             <span className="text-lg font-semibold uppercase tracking-widest text-foreground">
@@ -105,8 +97,6 @@ export default async function UnlockPage({ searchParams }: { searchParams: Promi
               Unlock the NF checker for 24 hours.
             </span>
           </div>
-
-          {pass.valid && pass.expiresAt && <AccessPassCountdown expiresAt={pass.expiresAt} />}
 
           {!allowance.allowed && (
             <p className="border border-border bg-muted px-4 py-3 text-xs font-medium leading-relaxed text-muted-foreground">
@@ -121,8 +111,20 @@ export default async function UnlockPage({ searchParams }: { searchParams: Promi
             <input type="hidden" name="service" value={service} />
             <UnlockSubmitButton label={label} />
           </form>
-
         </div>
+
+        <Link
+          href="https://cookiesmo.i4n.tech"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="group mt-4 flex items-center justify-between gap-4 rounded-2xl border border-border bg-card p-5 text-card-foreground transition-colors hover:border-primary/50"
+        >
+          <span className="flex flex-col gap-1">
+            <span className="text-sm font-semibold uppercase tracking-wide">Need a free account?</span>
+            <span className="text-sm text-muted-foreground">Visit the Cookies Mo account generator.</span>
+          </span>
+          <ArrowUpRight className="size-5 shrink-0 text-primary transition-transform group-hover:translate-x-0.5" aria-hidden />
+        </Link>
       </div>
 
       <div className="mt-auto">
