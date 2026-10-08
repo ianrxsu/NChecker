@@ -6,6 +6,7 @@ import { getPass } from "@/lib/access-pass"
 import { PublicPageIntro } from "@/components/public-page-intro"
 import { CheckerShell } from "@/components/checker/checker-shell"
 import { CheckerUnavailable } from "@/components/checker/checker-unavailable"
+import { AccessPassCountdown } from "@/components/access-pass-countdown"
 import { SiteHeader } from "@/components/site-header"
 import { SiteFooter } from "@/components/site-footer"
 import { getCheckerVisibility, isCheckerVisible, isBulkVisible } from "@/lib/checker-visibility"
@@ -57,6 +58,8 @@ export default async function NetflixPage({ params }: { params: Promise<{ mode?:
       <SiteHeader cta="none" />
 
       <div className="mx-auto w-full max-w-6xl px-4 py-10 sm:px-6 sm:py-12">
+        {pass.expiresAt && <AccessPassCountdown expiresAt={pass.expiresAt} />}
+
         {/* Intro */}
         <PublicPageIntro title="Netflix cookie checker" description="Check your session and understand the result. Add your cookies below to see available plan, country, and profile details." />
 

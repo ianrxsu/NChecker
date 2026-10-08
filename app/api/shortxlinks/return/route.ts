@@ -18,7 +18,7 @@ import {
 export const runtime = "nodejs"
 export const dynamic = "force-dynamic"
 
-const CANONICAL_ORIGIN = "https://cookiesmo.i4n.tech"
+const CANONICAL_ORIGIN = "https://kasumichecker.vercel.app"
 
 function clientIp(req: Request): string | null {
   const forwarded = req.headers.get("x-forwarded-for")

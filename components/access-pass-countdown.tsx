@@ -14,7 +14,11 @@ export function AccessPassCountdown({ expiresAt }: { expiresAt: number }) {
   const [remaining, setRemaining] = useState(() => Math.max(0, expiresAt - Date.now()))
 
   useEffect(() => {
-    const update = () => setRemaining(Math.max(0, expiresAt - Date.now()))
+    const update = () => {
+      const next = Math.max(0, expiresAt - Date.now())
+      setRemaining(next)
+      if (next === 0) window.location.replace("/unlock?service=netflix&error=Access%20expired")
+    }
     update()
     const interval = window.setInterval(update, 1000)
     return () => window.clearInterval(interval)
@@ -24,7 +28,7 @@ export function AccessPassCountdown({ expiresAt }: { expiresAt: number }) {
 
   return (
     <p className="border border-accent/40 bg-accent/10 px-4 py-3 text-xs font-medium leading-relaxed text-foreground" role="status">
-      {expired ? "Access is locked again. Refresh to unlock another 24-hour session." : `Access is active for this browser. Locks again in ${formatRemaining(remaining)}.`}
+      {expired ? "Access is locked again. Refresh to unlock another 24-hour session." : `Access is active for this device. Locks again in ${formatRemaining(remaining)}.`}
     </p>
   )
 }
