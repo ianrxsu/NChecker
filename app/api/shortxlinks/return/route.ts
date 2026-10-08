@@ -26,7 +26,7 @@ function clientIp(req: Request): string | null {
 }
 
 function reject(origin: string, reason = "gateway"): NextResponse {
-  return NextResponse.redirect(new URL(`/account-generator?error=${reason}`, origin), { status: 303 })
+  return NextResponse.redirect(new URL(`/unlock?service=netflix&error=${reason}`, origin), { status: 303 })
 }
 
 export async function GET(req: Request): Promise<Response> {

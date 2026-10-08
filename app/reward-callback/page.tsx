@@ -47,7 +47,7 @@ export default async function RewardCallbackPage({ searchParams }: { searchParam
       ? "/prime/account-generator"
       : service === "crunchyroll"
         ? "/crunchyroll/account-generator"
-        : "/account-generator"
+        : "/netflix"
 
   // Netflix generator links-only: hide cookie copy actions on the claim result for
   // Netflix only. Prime/Crunchyroll are unaffected regardless of this setting.

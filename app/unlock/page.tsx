@@ -5,7 +5,7 @@ import { BookOpen, Clock, ShieldCheck, Sparkles } from "lucide-react"
 import { requestIp } from "@/lib/request-ip"
 import { readDeviceId } from "@/lib/device-id"
 import { fingerprintFromNextHeaders } from "@/lib/claim-fingerprint"
-import { isAccessPassMode, getPass } from "@/lib/access-pass"
+import { isAccessPassMode } from "@/lib/access-pass"
 import { claimAllowance } from "@/lib/rate-limit"
 import { SiteHeader } from "@/components/site-header"
 import { SiteFooter } from "@/components/site-footer"
@@ -38,7 +38,7 @@ function generatorHref(service: GeneratorService): string {
     ? "/prime/account-generator"
     : service === "crunchyroll"
       ? "/crunchyroll/account-generator"
-      : "/account-generator"
+      : "/netflix"
 }
 
 export default async function UnlockPage({ searchParams }: { searchParams: Promise<{ service?: string; error?: string }> }) {
@@ -47,12 +47,13 @@ export default async function UnlockPage({ searchParams }: { searchParams: Promi
 
   // Netflix is always protected by the 24-hour pass. Other services retain the
   // admin-controlled toggle used by their existing generator flows.
-  if (service !== "netflix" && !(await isAccessPassMode())) redirect(generatorHref(service))
+  if ((service === "prime" || service === "crunchyroll") && !(await isAccessPassMode())) {
+    redirect(generatorHref(service))
+  }
 
   const [ip, deviceId] = await Promise.all([requestIp(), readDeviceId()])
-  const pass = await getPass(deviceId)
-  // Already holds a valid pass → nothing to unlock, go generate.
-  if (pass.valid) redirect(generatorHref(service))
+  // Keep this page renderable even when a pass exists. Redirecting back to the
+  // gated checker here can create a loop if browser cookies are out of sync.
 
   // Surface whether they're currently at a service cap so the copy stays honest — the
   // pass removes the gateway, never the per-service claim limit.
