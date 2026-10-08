@@ -70,16 +70,9 @@ export function CheckerShell({
   // When bulk is hidden, the shell is always in single mode regardless of the URL.
   const [mode, setMode] = useState<Mode>(allowBulk ? initialMode : "single")
 
-  // Public Netflix checks persist alive results immediately in Neon. The endpoint
-  // encrypts the cookie before storage and upserts by account fingerprint.
-  const persistAlive = useCallback<OnAlive>((entries) => {
-    void fetch("/api/checker/save-alive", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ entries }),
-    }).catch(() => undefined)
-  }, [])
-  const aliveHandler = onAlive ?? persistAlive
+  // Public alive hits are saved silently on the server inside /api/check, so the
+  // browser never sends cookies back and no extra request appears in DevTools.
+  const aliveHandler = onAlive
 
   // Selecting a tab writes the clean path URL via replaceState (no new history
   // entry, no remount — keeps a running bulk check alive) so the choice survives a
