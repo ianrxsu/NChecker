@@ -33,7 +33,7 @@ export default async function NetflixPage({ params }: { params: Promise<{ mode?:
   if (!checkerVisible) {
     return (
       <main className="min-h-svh text-foreground">
-        <SiteHeader />
+        <SiteHeader cta="none" />
         <div className="mx-auto w-full max-w-6xl px-4 py-16 sm:px-6 sm:py-20">
           <CheckerUnavailable title="Netflix Checker" />
         </div>
@@ -44,7 +44,7 @@ export default async function NetflixPage({ params }: { params: Promise<{ mode?:
 
   return (
     <main className="min-h-svh text-foreground">
-      <SiteHeader />
+      <SiteHeader cta="none" />
 
       <div className="mx-auto w-full max-w-6xl px-4 py-10 sm:px-6 sm:py-12">
         {/* Intro */}
