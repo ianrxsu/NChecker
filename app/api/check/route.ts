@@ -6,6 +6,7 @@ import { type CheckErrorCategory } from "@/lib/check-errors"
 import type { CheckResult } from "@/lib/normalize-upstream"
 import { type ProxyDialInfo } from "@/lib/proxies"
 import { pruneDispatchers } from "@/lib/proxy-dispatcher"
+import { getServerLiveProxies } from "@/lib/server-live-proxies"
 // Robust check logic shared with the saved-recheck automation so every checker
 // gets the same proxy-failover + dead-confirmation accuracy.
 import { checkNetflixWithLinks, checkOne, checkPrimeDirectConfirmed, createProxyPoolChecker, type Service } from "@/lib/check-via-proxies"
@@ -219,7 +220,28 @@ export async function POST(req: NextRequest) {
     // proxy fail-over on 403/429/timeout + a DEAD_CONFIRMATIONS quorum so a single
     // flagged proxy can't produce a false dead. Learned proxy health is shared
     // across every cookie in this batch.
-    const checkViaProxy = createProxyPoolChecker(activeProxies, { includeLinks, service })
+    let currentProxies = activeProxies
+    let checkViaProxy = createProxyPoolChecker(currentProxies, { includeLinks, service })
+    let refreshPromise: Promise<void> | null = null
+    let proxyRefreshUsed = false
+
+    // A proxy can die after the client's reachability probe. Refresh once per batch
+    // and requeue every cookie that was affected by the failed/slow proxy pool.
+    // The shared promise prevents concurrent workers from starting duplicate scrapes.
+    const refreshProxyPool = async (): Promise<boolean> => {
+      if (proxyRefreshUsed) return false
+      proxyRefreshUsed = true
+      if (!refreshPromise) {
+        refreshPromise = getServerLiveProxies({ limit: 300 }).then((fresh) => {
+          if (fresh.length === 0) return
+          currentProxies = fresh
+          checkViaProxy = createProxyPoolChecker(currentProxies, { includeLinks, service })
+          pruneDispatchers(new Set(currentProxies.map((p) => p.id)))
+        }).catch(() => undefined)
+      }
+      await refreshPromise
+      return currentProxies.length > 0
+    }
 
     const results: CheckResult[] = new Array(cookies.length)
     const startedAt = Date.now()
@@ -262,35 +284,33 @@ export async function POST(req: NextRequest) {
         send({ type: "meta", proxies: activeProxies.length })
         try {
           await withDeadline(
-            runPool(cookies.length, Math.min(concurrency, cookies.length), async (i) => {
-            // ROUTING POLICY (bulk):
-            //  • STEAM → validated LOCALLY from the token JWTs (no network), so it
-            //    needs NO proxy pool and never times out. Steam expires access tokens
-            //    in ~24h but the refresh token lasts ~200d; liveness is read straight
-            //    from those tokens (see steam-native), which also dodges Steam's
-            //    IP-binding that made every proxied/direct probe fail.
-            //  • SPOTIFY → checked directly, like Steam. Spotify's token bootstrap
-            //    rejects arbitrary proxy exits and was incorrectly entering the
-            //    no-proxy retry loop in bulk mode.
-            //  • Netflix/Prime/Crunchyroll → live proxy pool, never the shared
-            //    server IP. With no pool, the cookie is retried shortly.
-            const r: CheckResult = await withDeadline(
-              service === "steam" || service === "spotify"
-                ? checkOne(cookies[i], { includeRaw: false, includeLinks, service, timeoutMs: PER_COOKIE_DEADLINE_MS })
-                : hasProxies
-                  ? checkViaProxy(
-                      cookies[i],
-                      proxies.length > 0
-                        ? Array.from(cookies[i]).reduce((hash, char) => (hash * 31 + char.charCodeAt(0)) >>> 0, i) % proxies.length
-                        : i,
-                    )
-                  : Promise.resolve(noProxyResult),
-              PER_COOKIE_DEADLINE_MS,
-              timeoutResult(),
-            )
-            results[i] = r
-            send({ type: "result", index: i, result: r }) // flush this verdict now
-          }),
+            (async () => {
+              const pending = Array.from({ length: cookies.length }, (_, i) => i)
+              let nextPending = 0
+              const worker = async () => {
+                while (nextPending < pending.length) {
+                  const i = pending[nextPending++]
+                  const r: CheckResult = await withDeadline(
+                    service === "steam" || service === "spotify"
+                      ? checkOne(cookies[i], { includeRaw: false, includeLinks, service, timeoutMs: PER_COOKIE_DEADLINE_MS })
+                      : currentProxies.length > 0
+                        ? checkViaProxy(cookies[i], i % currentProxies.length)
+                        : Promise.resolve(noProxyResult),
+                    PER_COOKIE_DEADLINE_MS,
+                    timeoutResult(),
+                  )
+                  const retryable = service !== "steam" && service !== "spotify" &&
+                    ["upstream_unavailable", "upstream_error", "timeout", "rate_limited"].includes(r.errorCategory ?? "")
+                  if (retryable && proxies.length === 0 && await refreshProxyPool()) {
+                    pending.push(i)
+                    continue
+                  }
+                  results[i] = r
+                  send({ type: "result", index: i, result: r })
+                }
+              }
+              await Promise.all(Array.from({ length: Math.min(concurrency, cookies.length) }, () => worker()))
+            })(),
             BATCH_DEADLINE_MS,
             undefined,
           )
