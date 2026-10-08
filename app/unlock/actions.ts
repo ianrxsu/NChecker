@@ -1,7 +1,7 @@
 "use server"
 
 import { cookies } from "next/headers"
-import { redirect } from "next/navigation"
+import { redirect, unstable_rethrow } from "next/navigation"
 import { createRewardSession } from "@/lib/reward-store"
 import { requestIp } from "@/lib/request-ip"
 import { getOrCreateDeviceId } from "@/lib/device-id"
@@ -60,7 +60,7 @@ export async function redeemUnlockCode(formData: FormData): Promise<void> {
   redirect(generatorHref(service) + (result.accessType === "temporary" ? "?access=code&temporary=true" : "?access=code&lifetime=true"))
 }
 
-export async function startUnlock(formData: FormData): Promise<void> {
+async function startUnlockInternal(formData: FormData): Promise<void> {
   const service = asService(formData.get("service"))
 
   // Netflix is always protected by the 24-hour pass. Other services retain the
@@ -105,3 +105,14 @@ export async function startUnlock(formData: FormData): Promise<void> {
   }
   redirect(gatewayUrl)
 }
+
+export async function startUnlock(formData: FormData): Promise<void> {
+  try {
+    await startUnlockInternal(formData)
+  } catch (error) {
+    unstable_rethrow(error)
+    console.error("[v0] NF unlock action failed", error)
+    redirect(`/unlock?service=netflix&error=${encodeURIComponent("Unlock is temporarily unavailable. Please try again.")}`)
+  }
+}
+
